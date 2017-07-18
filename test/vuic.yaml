@@ -1,0 +1,124 @@
+tosca_definitions_version: tosca_simple_profile_for_nfv_1_0_0
+
+description: cloudvuic deployment
+metadata:
+  template_name: tosca-vnfd-cloudvuic
+
+topology_template:
+  inputs:
+   vnf_id:
+      type: string
+      default: 1
+   vnf_name:
+      type: string
+      default: VUIC
+   vnf_type:
+      type: string
+      default: APPLICATION SERVER
+   image_name:
+      type: string
+      default: ubuntu-14.04_IMG-collectd
+   flavor:
+      type: string
+      default: m1.medium
+   network:
+      type: string
+      description: management network #dynamic parameter
+      default: cw-vims 
+   zone:
+      type: string
+      default: nova 
+   management:
+      type: boolean
+      description: management network
+      default: true 
+   
+   vendor:
+      type: string
+      description: Vendor information
+      default: Tacker     
+      
+  node_templates:
+    clouduic_server:
+      type: APPLICATION_SERVER
+      properties:
+        name: clouduic_server
+        image: { get_input: ubuntu-16.04}
+        flavor: {get_input: flavor}
+        availability_zone: { get_input: zone }
+        mgmt_driver: noop
+        user_data_format: RAW
+        user_data: |
+         #cloud-config
+          chpasswd:
+            list: |
+              ubuntu:ubuntu
+          expire: False
+          runcmd:
+            - echo "ubuntu:huawei" | chpasswd 
+          
+              
+
+    CP1:
+      type: tosca.nodes.nfv.CP.Tacker
+      properties:
+        order: 0
+        name: clouduic_server
+        management: { get_input: management }
+        anti_spoofing_protection: true
+        security_groups:
+          - default
+          - cw-vims
+         
+      requirements:
+        - virtualLink:
+            node: VL1
+        - virtualBinding:
+            node: clouduic_server 
+     
+    clouduic_receiver:
+      type: APPLICATION_SERVER
+      properties:
+        name: clouduic_receiver
+        image: { get_input: ubuntu-16.04}
+        flavor: {get_input: flavor}
+        availability_zone: { get_input: zone }
+        mgmt_driver: noop
+        user_data_format: RAW
+        user_data: |
+         #cloud-config
+          chpasswd:
+            list: |
+              ubuntu:ubuntu
+          expire: False
+          
+          runcmd:
+            - echo "ubuntu:huawei" | chpasswd
+        
+
+    CP2:
+      type: tosca.nodes.nfv.CP.Tacker
+      properties:
+        order: 0
+        name: clouduic_receiver
+        management: { get_input: management }
+        anti_spoofing_protection: true
+        
+        security_groups:
+          - default
+          - cw-vims
+      
+      requirements:
+        - virtualLink:
+            node: VL1
+        - virtualBinding:
+            node: clouduic_receiver
+      
+ 
+   
+    VL1:
+      type: tosca.nodes.nfv.VL
+      properties:
+        network_name: { get_input: network }
+        vendor: {get_input: vendor} 
+   
